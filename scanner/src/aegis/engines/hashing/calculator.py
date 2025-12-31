@@ -1,4 +1,4 @@
-# Copyright 2025 Aegis Security
+# Copyright 2025 Veritensor Security
 # Adapted from huggingface_hub (Apache 2.0 License)
 #
 # This module implements hashing logic identical to Hugging Face Hub.
