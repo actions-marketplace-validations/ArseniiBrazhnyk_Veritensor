@@ -95,8 +95,19 @@ def scan(
                 file_hash = calculate_sha256(file_path)
                 file_result["hash"] = file_hash
                 
-                # TODO (Sprint 2): Call HuggingFace API to verify hash identity
-                # identity = hf_client.lookup(file_hash)
+                # [NEW] Identity verification logic
+                # We hope to get the repo_id because of the path or arguments,
+                #but it is not possible for the MVP to pass the repo_id as another client if needed.
+                # Either, or I'm scanning the current information, or I may not know the user ID.
+                # If you repeat it, you will find out (an example passed to CI), we check:
+                
+                # Integration example (if you were with us - repo):
+                # importing HuggingFaceClient from aegis.integrations.huggingface
+                # hf_client = HuggingFaceClient(token=config.hf_token)
+                # verification = hf_client.verify_file_hash(repo_id, file_path.name , file hash)
+                # file_result["identification"] = verification
+                # if the check == "INCONSISTENCY":
+                #threats.append("CRITICAL: the hash of the file does not match the Hugging Face registry!")
             except Exception as e:
                 file_result["threats"].append(f"Hashing Error: {str(e)}")
 
