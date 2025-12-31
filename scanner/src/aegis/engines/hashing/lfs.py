@@ -1,4 +1,4 @@
-# Copyright 2025 Aegis Security
+# Copyright 2025 Veritensor Security
 # Logic adapted from huggingface_hub (Apache 2.0 License)
 #
 # This module handles Git LFS (Large File Storage) pointers.
