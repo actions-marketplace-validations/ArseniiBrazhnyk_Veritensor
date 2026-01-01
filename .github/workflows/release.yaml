@@ -11,9 +11,6 @@ permissions:
   id-token: write     
 
 jobs:
-  build-and-publish:
-
-jobs:
   pypi-publish:
     name: Upload to PyPI
     runs-on: ubuntu-latest
