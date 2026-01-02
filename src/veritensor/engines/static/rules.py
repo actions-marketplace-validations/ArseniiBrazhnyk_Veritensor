@@ -103,20 +103,21 @@ def is_critical_threat(module: str, name: str) -> bool:
     return get_severity(module, name) == "CRITICAL"
 
 # List of license keywords that pose a risk for commercial use
-RESTRICTED_LICENSES = [
+DEFAULT_RESTRICTED_LICENSES = [
     "cc-by-nc",          # Non-Commercial
     "agpl",              # Affero GPL (viral license)
     "non-commercial",
     "research-only",
 ]
 
-def is_license_restricted(license_string: str) -> bool:
-    """Checks if a license string contains restricted keywords."""
-    if not license_string:
-        return False
+def is_license_restricted(license_str: str, custom_list: List[str] = None) -> bool:
+    if not license_str:
+        return False # Missing license logic is handled in main.py
+        
+    blocklist = custom_list if custom_list else DEFAULT_RESTRICTED_LICENSES
+    normalized = license_str.lower()
     
-    normalized = license_string.lower()
-    for keyword in RESTRICTED_LICENSES:
+    for keyword in blocklist:
         if keyword in normalized:
             return True
     return False
