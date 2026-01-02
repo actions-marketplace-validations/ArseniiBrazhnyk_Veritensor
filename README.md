@@ -10,7 +10,8 @@
 Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorch, Keras, GGUF**) and ensures that your models:
 1.  **Are Safe:** Do not contain malicious code (RCE, Reverse Shells, Lambda injections).
 2.  **Are Authentic:** Have not been tampered with (Hash-to-API verification against Hugging Face).
-3.  **Are Trusted:** Can be cryptographically signed before deployment.
+3.  **Are Compliant:** Do not violate commercial license terms (e.g., CC-BY-NC, AGPL).
+4.  **Are Trusted:** Can be cryptographically signed before deployment.
 
 ---
 
@@ -20,13 +21,14 @@ Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorc
 *   **Identity Verification:** Automatically verifies model hashes against the official Hugging Face registry to detect Man-in-the-Middle attacks.
 *   **Supply Chain Security:** Integrates with **Sigstore Cosign** to sign Docker containers only if the model inside is clean.
 *   **CI/CD Native:** Ready for GitHub Actions, GitLab, and Pre-commit pipelines.
-*   **Zero-Trust Policy:** Blocks unknown globals by default, not just known signatures.
+*   **License Firewall:** Blocks models with restrictive licenses (Non-Commercial, Research-Only) from entering your production pipeline.
 
 ---
 
 ## 📦 Installation
 
 ### Via PyPI (Recommended for local use)
+Lightweight installation (no heavy ML libraries required).
 ```bash
 pip install veritensor
 ```
@@ -63,13 +65,18 @@ Ensure the file on your disk matches the official version from the registry (det
 veritensor scan ./pytorch_model.bin --repo meta-llama/Llama-2-7b
 ```
 
-If the hash doesn't match the official repo, Veritensor will block deployment.
-
+### 3. License Compliance Check
+Veritensor automatically reads metadata from safetensors and GGUF files.
+If a model has a Non-Commercial license (e.g., cc-by-nc-4.0), it will raise a HIGH severity alert.
+To override this (Break-glass mode), use:
+```bash
+veritensor scan ./model.safetensors --force
+```
 ---
 
 ## 🔐 Supply Chain Security (Container Signing)
 
-Veritensor integrates with Sigstore Cosign to cryptographically sign your Docker images only if they pass the security scan. This ensures that no unverified or malicious containers are ever deployed to your cluster.
+Veritensor integrates with Sigstore Cosign to cryptographically sign your Docker images only if they pass the security scan.
 
 ### 1. Generate Keys
 Generate a key pair for signing:
@@ -145,16 +152,25 @@ repos:
 You can customize policies by creating a veritensor.yaml file in your project root:
 ```yaml
 # veritensor.yaml
+
+# Minimum severity to fail the build (CRITICAL, HIGH, MEDIUM, LOW)
 fail_on_severity: CRITICAL
 
-# Allow specific modules that are usually blocked
+# License Policy
+fail_on_missing_license: false
+custom_restricted_licenses:
+  - "cc-by-nc"
+  - "agpl"
+  - "research-only"
+
+# Allow specific modules that are usually blocked (Allowlist)
 allowed_modules:
   - "my_company.internal_layer"
   - "sklearn.tree"
 
-# Ignore specific warnings
-ignored_rules:
-  - "WARNING: h5py missing"
+# Whitelist specific models (skip license checks for them)
+allowed_models:
+  - "meta-llama/Meta-Llama-3-70B-Instruct"
 ```
 
 ---
