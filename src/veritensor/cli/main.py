@@ -3,7 +3,6 @@
 # The Main CLI Entry Point.
 # Orchestrates: Config -> Scan -> Verify -> Sign.
 
-
 import sys
 import typer
 import logging
@@ -77,7 +76,7 @@ def scan(
         logger.setLevel(logging.DEBUG)
 
     if not json_output:
-        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.0.3", border_style="cyan"))
+        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.0.4", border_style="cyan"))
 
     files_to_scan = []
     if path.is_file():
@@ -233,6 +232,9 @@ def _perform_signing(image: str, status: str, config):
 
 @app.command()
 def keygen(output_prefix: str = "veritensor"):
+    """
+    Generates a generic Cosign key pair for signing.
+    """
     console.print(f"[bold]Generating Cosign Key Pair ({output_prefix})...[/bold]")
     if not is_cosign_available():
         console.print("[bold red]Error:[/bold red] 'cosign' binary not found in PATH.")
@@ -244,8 +246,10 @@ def keygen(output_prefix: str = "veritensor"):
 
 @app.command()
 def version():
-    console.print("Veritensor v1.1.0 (Community Edition)")
+    """
+    Show version info.
+    """
+    console.print("Veritensor v1.0.4 (Community Edition)")
 
 if __name__ == "__main__":
     app()
-
