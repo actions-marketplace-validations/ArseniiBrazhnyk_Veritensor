@@ -54,6 +54,13 @@ class VeritensorConfig:
     # Format: "table", "json", "sarif"
     output_format: str = "table"
 
+    # Licensing policy
+    fail_on_missing_license: bool = False
+    custom_restricted_licenses: List[str] = field(default_factory=list)
+    
+    # Allowed models (ignore license checks)
+    allowed_models: List[str] = field(default_factory=list)
+
 
 class ConfigLoader:
     """
