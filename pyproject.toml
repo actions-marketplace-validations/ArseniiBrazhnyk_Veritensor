@@ -31,8 +31,15 @@ dependencies = [
     "requests>=2.31.0",
     "pyyaml>=6.0",
     "huggingface_hub>=0.19.0",
-    "fickling>=0.0.1"
-    # Optional dependencies can be added here if needed in the future
+    # Fickling removed from here to avoid installing PyTorch (800MB+) for regular users
+]
+
+[project.optional-dependencies]
+# Install these only for testing: pip install veritensor[test]
+test = [
+    "pytest",
+    "pytest-mock",
+    "fickling>=0.0.1" 
 ]
 
 [project.urls]
@@ -41,7 +48,6 @@ dependencies = [
 "Documentation" = "https://github.com/ArseniiBrazhnyk/Veritensor#readme"
 
 [project.scripts]
-# This creates the 'veritensor' command in the terminal
 veritensor = "veritensor.cli.main:app"
 
 [tool.setuptools.packages.find]
