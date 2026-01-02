@@ -3,7 +3,6 @@
 # This module integrates with Sigstore Cosign.
 # It wraps the 'cosign' CLI binary using subprocess to sign OCI artifacts.
 #
-# Why subprocess?
 # The official Sigstore Python SDK is often behind the Go CLI in features.
 # Calling the binary is the industry standard for CI/CD integrations.
 
