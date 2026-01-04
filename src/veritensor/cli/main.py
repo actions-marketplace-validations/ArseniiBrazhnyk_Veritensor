@@ -253,7 +253,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.0.5 (Community Edition)")
+    console.print("Veritensor v1.1.2 (Community Edition)")
 
 if __name__ == "__main__":
     app()
