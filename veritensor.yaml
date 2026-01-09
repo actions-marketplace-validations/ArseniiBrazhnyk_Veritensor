@@ -33,14 +33,14 @@ custom_restricted_licenses:
 # Supports "regex:" or "pattern:" prefix for advanced matching.
 allowed_models:
   # Simple substring match (allows specific model)
-  - "google-bert/bert-base-uncased"
+  - 'google-bert/bert-base-uncased'
   
   # Regex match: Allow ALL models from "meta-llama" organization
-  - "regex:^meta-llama/.*"
+  - 'regex:^meta-llama/.*'
   
   # Regex match: Allow specific version pattern (e.g., v1.0 to v1.9)
-  - "pattern:my-org/internal-model-v1\.[0-9]"
-
+  - 'pattern:my-org/internal-model-v1\.[0-9]'
+  
 # --- Security Policies (Pickle/PyTorch) ---
 
 # List of additional Python modules that are trusted during deserialization.
