@@ -9,6 +9,7 @@ import typer
 import logging
 import json
 import os
+import datetime
 from pathlib import Path
 from typing import Optional, List
 from rich.console import Console
@@ -24,7 +25,7 @@ from veritensor.engines.hashing.calculator import calculate_sha256
 from veritensor.engines.hashing.readers import get_reader_for_file 
 from veritensor.engines.static.pickle_engine import scan_pickle_stream
 from veritensor.engines.static.keras_engine import scan_keras_file
-from veritensor.engines.static.rules import is_license_restricted 
+from veritensor.engines.static.rules import is_license_restricted, is_match
 from veritensor.integrations.cosign import sign_container, is_cosign_available, generate_key_pair
 from veritensor.integrations.huggingface import HuggingFaceClient
 
@@ -77,7 +78,7 @@ def scan(
         logger.setLevel(logging.DEBUG)
 
     if not json_output:
-        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.0.5", border_style="cyan"))
+        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.1.0", border_style="cyan"))
 
     files_to_scan = []
     if path.is_file():
@@ -143,21 +144,19 @@ def scan(
                 for t in threats:
                     scan_res.add_threat(t)
 
-            # --- C. License Check (FIXED in v1.0.5) ---
+            # --- C. License Check ---
             reader = get_reader_for_file(file_path)
             if reader:
-                # Read full file structure (format, metadata, tensor_count)
                 file_info = reader.read_metadata(file_path)
                 
                 if "error" in file_info:
                      scan_res.add_threat(f"MEDIUM: Metadata parse error: {file_info['error']}")
                 else:
-                    # [FIX] Extract nested metadata dictionary
                     meta_dict = file_info.get("metadata", {})
-                    # Safely retrieve license (can be None)
                     license_str = meta_dict.get("license", None)
                     
-                    is_whitelisted = repo and (repo in config.allowed_models)
+                    # [UPDATED] Use Regex matching for allowed models
+                    is_whitelisted = repo and is_match(repo, config.allowed_models)
                     
                     if not is_whitelisted:
                         if not license_str:
@@ -166,6 +165,7 @@ def scan(
                                 scan_res.add_threat(f"HIGH: {msg} (Policy: fail_on_missing)")
                             else:
                                 scan_res.threats.append(f"INFO: {msg}")
+                        # [UPDATED] Use Regex matching for restricted licenses
                         elif is_license_restricted(license_str, config.custom_restricted_licenses):
                             scan_res.add_threat(f"HIGH: Restricted license detected: '{license_str}'")
 
@@ -201,7 +201,9 @@ def scan(
 
     # Signing
     if image:
-        _perform_signing(image, sign_status, config)
+        # Generate timestamp for the signature
+        scan_timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat()
+        _perform_signing(image, sign_status, config, scan_timestamp)
 
 def _print_table(results: List[ScanResult]):
     table = Table(title="Scan Results")
@@ -222,13 +224,25 @@ def _print_table(results: List[ScanResult]):
         table.add_row(res.file_path, f"[{status_style}]{res.status}[/{status_style}]", id_icon, threat_text)
     console.print(table)
 
-def _perform_signing(image: str, status: str, config):
+def _perform_signing(image: str, status: str, config, timestamp: str):
+    """
+    Wrapper for Cosign integration.
+    """
     console.print(f"\n🔐 [bold]Signing container:[/bold] {image}")
     key_path = config.private_key_path or os.environ.get("VERITENSOR_PRIVATE_KEY_PATH")
     if not key_path:
          console.print("[red]Skipping signing: No private key found (set VERITENSOR_PRIVATE_KEY_PATH).[/red]")
          return
-    success = sign_container(image_ref=image, key_path=key_path, annotations={"scanned_by": "veritensor", "status": status})
+    
+    # Add timestamp to annotations
+    annotations = {
+        "scanned_by": "veritensor",
+        "status": status,
+        "scan_date": timestamp
+    }
+    
+    success = sign_container(image_ref=image, key_path=key_path, annotations=annotations)
+    
     if success:
         console.print(f"[green]✔ Signed successfully with status: {status}[/green]")
     else:
@@ -253,7 +267,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.1.2 (Community Edition)")
+    console.print("Veritensor v1.1.0 (Community Edition)")
 
 if __name__ == "__main__":
     app()
