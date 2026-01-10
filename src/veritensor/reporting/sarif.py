@@ -5,7 +5,7 @@
 
 import json
 from typing import List, Any
-from veritensor.core.types import ScanResult  # [FIX] Импортируем тип
+from veritensor.core.types import ScanResult  
 
 # --- Constants ---
 SARIF_VERSION = "2.1.0"
