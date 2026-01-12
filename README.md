@@ -76,6 +76,28 @@ veritensor scan ./model.safetensors --force
 ```
 ---
 
+## 📊 Reporting & Compliance
+
+Veritensor supports industry-standard formats for integration with security dashboards and audit tools.
+
+### 1. GitHub Security (SARIF)
+Generate a report compatible with GitHub Code Scanning:
+```bash
+veritensor scan ./models --sarif > veritensor-report.sarif
+```
+### 2. Software Bill of Materials (SBOM)
+Generate a CycloneDX v1.5 SBOM to inventory your AI assets:
+```bash
+veritensor scan ./models --sbom > sbom.json
+```
+### 3. Raw JSON
+For custom parsers and SOAR automation:
+```bash
+veritensor scan ./models --json
+```
+
+---
+
 ## 🔐 Supply Chain Security (Container Signing)
 
 Veritensor integrates with Sigstore Cosign to cryptographically sign your Docker images only if they pass the security scan.
@@ -118,7 +140,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Scan Models
-        uses: ArseniiBrazhnyk/Veritensor@v1.1.2
+        uses: ArseniiBrazhnyk/Veritensor@v1.2.0
         with:
           path: './models'
           repo: 'meta-llama/Llama-2-7b' # Optional: Verify integrity
@@ -130,7 +152,7 @@ Prevent committing malicious models to your repository. Add this to .pre-commit-
 ```yaml
 repos:
   - repo: https://github.com/ArseniiBrazhnyk/Veritensor
-    rev: v1.1.2
+    rev: v1.2.0
     hooks:
       - id: veritensor-scan
 ```

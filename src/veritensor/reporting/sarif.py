@@ -1,12 +1,11 @@
 # Copyright 2025 Veritensor Security
 #
 # This module generates SARIF v2.1.0 reports.
-# It allows Veritensor to integrate natively with GitHub Advanced Security
-# and other CI/CD dashboards.
+# It allows Veritensor to integrate natively with GitHub Advanced Security.
 
 import json
-from typing import List, Dict, Any
-from pathlib import Path
+from typing import List, Any
+from veritensor.core.types import ScanResult  
 
 # --- Constants ---
 SARIF_VERSION = "2.1.0"
@@ -15,7 +14,6 @@ TOOL_NAME = "Veritensor Security Scanner"
 TOOL_DRIVER_NAME = "veritensor"
 
 # --- Rule Definitions ---
-# We map internal Veritensor threats to stable Rule IDs.
 VERITENSOR_RULES = [
     {
         "id": "VERITENSOR-001",
@@ -52,34 +50,26 @@ VERITENSOR_RULES = [
 ]
 
 
-def generate_sarif_report(scan_results: List[Dict[str, Any]], tool_version: str = "4.1.0") -> str:
+def generate_sarif_report(scan_results: List[ScanResult], tool_version: str = "1.1.0") -> str:
     """
-    Converts internal Veritensor scan results into a SARIF JSON string.
-
-    Args:
-        scan_results: List of dicts from main.py (file, status, threats, hash).
-        tool_version: Current version of Veritensor.
-
-    Returns:
-        JSON string formatted as SARIF.
+    Converts internal Veritensor scan results (Objects) into a SARIF JSON string.
     """
     
     sarif_results = []
 
     for file_res in scan_results:
-        # We only report issues, not clean files (PASS)
-        if file_res["status"] == "PASS":
+        if file_res.status == "PASS":
             continue
 
-        file_path = file_res.get("file", "unknown")
-        threats = file_res.get("threats", [])
+        file_path = file_res.file_path
+        threats = file_res.threats
 
         for threat_msg in threats:
             rule_id = _map_threat_to_rule_id(threat_msg)
             
             result = {
                 "ruleId": rule_id,
-                "level": "error",  # Default to error for now
+                "level": "error",
                 "message": {
                     "text": threat_msg
                 },
@@ -124,16 +114,13 @@ def _map_threat_to_rule_id(threat_msg: str) -> str:
     msg_lower = threat_msg.lower()
 
     if "lambda" in msg_lower and "keras" in msg_lower:
-        return "VERITENSOR-003"  # Keras Lambda
+        return "VERITENSOR-003"
     
     if "os." in msg_lower or "subprocess" in msg_lower or "eval" in msg_lower or "exec" in msg_lower:
-        return "VERITENSOR-001"  # RCE
+        return "VERITENSOR-001"
     
-    if "unsafe_import" in msg_lower or "critical" in msg_lower:
-        return "VERITENSOR-002"  # General Unsafe Import
-        
     if "hash" in msg_lower or "mismatch" in msg_lower:
-        return "VERITENSOR-004"  # Integrity
+        return "VERITENSOR-004"
 
-    # Fallback for unknown threats
+    # Fallback for generic unsafe imports or license issues
     return "VERITENSOR-002"
