@@ -1,5 +1,6 @@
 # 🛡️ Veritensor: AI Supply Chain Security
 
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/ArseniiBrazhnyk/veritensor-ai-model-security-scanner)
 [![PyPI version](https://img.shields.io/pypi/v/veritensor?color=blue&logo=pypi&logoColor=white)](https://pypi.org/project/veritensor/)
 [![Docker Image](https://img.shields.io/docker/v/arseniibrazhnyk/veritensor?label=docker&color=blue&logo=docker&logoColor=white)](https://hub.docker.com/r/arseniibrazhnyk/veritensor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
