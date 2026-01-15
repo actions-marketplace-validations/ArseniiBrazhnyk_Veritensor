@@ -273,7 +273,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.2.2 (Community Edition)")
+    console.print("Veritensor v1.2.3 (Community Edition)")
 
 @app.command()
 def init():
