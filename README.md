@@ -22,7 +22,7 @@ Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorc
 
 *   **Deep Static Analysis:** Decompiles Pickle bytecode and Keras Lambda layers to find obfuscated attacks (e.g., `STACK_GLOBAL` exploits).
 *   **Identity Verification:** Automatically verifies model hashes against the official Hugging Face registry to detect Man-in-the-Middle attacks.
-*   **License Firewall:** Blocks models with restrictive licenses (Non-Commercial, Research-Only) from entering your production pipeline.
+*   **License Firewall:** Blocks models with restrictive licenses (e.g., Non-Commercial, AGPL) from entering your production pipeline. Veritensor performs a hybrid check: it inspects embedded file metadata first, and automatically falls back to the Hugging Face API if metadata is missing (requires `--repo`).
 *   **Supply Chain Security:** Integrates with **Sigstore Cosign** to sign Docker containers. Includes **timestamps** to prevent replay attacks.
 *   **CI/CD Native:** Ready for GitHub Actions, GitLab, and Pre-commit pipelines.
 
@@ -209,6 +209,8 @@ allowed_models:
   - "regex:^google-bert/.*"                 # Allow all BERT models from Google
   - "internal/my-private-model"
 ```
+
+To generate a default configuration file, run: veritensor init
 
 ---
 
