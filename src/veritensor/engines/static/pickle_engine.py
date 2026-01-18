@@ -43,14 +43,20 @@ SUSPICIOUS_STRINGS = [
 ]
 
 def _is_safe_import(module: str, name: str) -> bool:
+    """Checks if the module is in the strict allowlist."""
+    
     if module in SAFE_MODULES:
         if module in ("builtins", "__builtin__"):
             return name in SAFE_BUILTINS
         return True
+    
+    base_module = module.split(".")[0]
+    if base_module in SAFE_MODULES and base_module not in ("builtins", "__builtin__"):
+        return True
+    
     if module.startswith("torch.") or module.startswith("numpy."):
         return True
-    if module.startswith("pathlib.") or module.startswith("re.") or module.startswith("collections."):
-        return True
+    
     return False
 
 def scan_pickle_stream(data: bytes, strict_mode: bool = True) -> List[str]:
