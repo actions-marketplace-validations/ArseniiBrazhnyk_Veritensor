@@ -2,6 +2,7 @@
 # The Main CLI Entry Point.
 # Orchestrates: Config -> Scan -> Verify -> Sign.
 
+
 import sys
 import typer
 import logging
@@ -80,11 +81,10 @@ def scan(
     if verbose:
         logger.setLevel(logging.DEBUG)
 
-    # Suppress logo if machine-readable output is requested
     is_machine_output = json_output or sarif_output or sbom_output
 
     if not is_machine_output:
-        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.2.1", border_style="cyan"))
+        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.2.3", border_style="cyan"))
 
     files_to_scan = []
     if path.is_file():
@@ -150,8 +150,11 @@ def scan(
                 for t in threats:
                     scan_res.add_threat(t)
 
-            # --- C. License Check ---
+            # --- C. License Check (HYBRID MODE) ---
             reader = get_reader_for_file(file_path)
+            license_str = None
+            
+            # 1. Try to read from file metadata
             if reader:
                 file_info = reader.read_metadata(file_path)
                 if "error" in file_info:
@@ -159,18 +162,32 @@ def scan(
                 else:
                     meta_dict = file_info.get("metadata", {})
                     license_str = meta_dict.get("license", None)
-                    
-                    is_whitelisted = repo and is_match(repo, config.allowed_models)
-                    
-                    if not is_whitelisted:
-                        if not license_str:
-                            msg = "WARNING: License metadata not found."
-                            if config.fail_on_missing_license:
-                                scan_res.add_threat(f"HIGH: {msg} (Policy: fail_on_missing)")
-                            else:
-                                scan_res.threats.append(f"INFO: {msg}")
-                        elif is_license_restricted(license_str, config.custom_restricted_licenses):
-                            scan_res.add_threat(f"HIGH: Restricted license detected: '{license_str}'")
+
+            # 2. Fallback: Fetch from API if not in file AND repo is provided
+            # Only if identity check didn't fail (don't trust API license for mismatched file)
+            hash_failed = any("Hash mismatch" in t for t in scan_res.threats)
+            
+            if not license_str and hf_client and repo and not hash_failed:
+                if not is_machine_output:
+                    # Optional: log that we are fetching from API
+                    pass
+                try:
+                    license_str = hf_client.get_model_license(repo)
+                except Exception:
+                    pass
+            
+            # 3. Validate License
+            is_whitelisted = repo and is_match(repo, config.allowed_models)
+            
+            if not is_whitelisted:
+                if not license_str:
+                    msg = "WARNING: License metadata not found (checked File & API)."
+                    if config.fail_on_missing_license:
+                        scan_res.add_threat(f"HIGH: {msg} (Policy: fail_on_missing)")
+                    else:
+                        scan_res.threats.append(f"INFO: {msg}")
+                elif is_license_restricted(license_str, config.custom_restricted_licenses):
+                    scan_res.add_threat(f"HIGH: Restricted license detected: '{license_str}'")
 
             # --- D. Policy Check ---
             if scan_res.status == "FAIL":
@@ -180,7 +197,7 @@ def scan(
             results.append(scan_res)
             progress.advance(task)
 
-    # --- Reporting Logic ---
+    # --- Reporting ---
     if sarif_output:
         print(generate_sarif_report(results))
     elif sbom_output:
@@ -273,7 +290,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.2.2 (Community Edition)")
+    console.print("Veritensor v1.3.0 (Community Edition)")
 
 @app.command()
 def init():
