@@ -5,12 +5,10 @@
 [![Docker Image](https://img.shields.io/docker/v/arseniibrazhnyk/veritensor?label=docker&color=blue&logo=docker&logoColor=white)](https://hub.docker.com/r/arseniibrazhnyk/veritensor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/scanner-ci.yaml/badge.svg)](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/scanner-ci.yaml)
-[![Security](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/security.yaml/badge.svg)](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/security.yaml)
-
 
 **Veritensor** is the Zero-Trust security platform for the AI Supply Chain. We replace naive model scanning with deep AST analysis and cryptographic verification.
 
-Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorch, Keras, GGUF**) and ensures that your models:
+Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorch, Keras, GGUF, Wheels**) and ensures that your models:
 1.  **Are Safe:** Do not contain malicious code (RCE, Reverse Shells, Lambda injections).
 2.  **Are Authentic:** Have not been tampered with (Hash-to-API verification against Hugging Face).
 3.  **Are Compliant:** Do not violate commercial license terms (e.g., CC-BY-NC, AGPL).
@@ -20,9 +18,9 @@ Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorc
 
 ## 🚀 Features
 
-*   **Deep Static Analysis:** Decompiles Pickle bytecode and Keras Lambda layers to find obfuscated attacks (e.g., `STACK_GLOBAL` exploits).
+*   **Deep Static Analysis:** Decompiles Pickle bytecode and Keras Lambda layers to find obfuscated attacks (e.g., `STACK_GLOBAL` exploits). Now supports deep scanning of **Zip archives** (PyTorch) and **Python Wheels**.
 *   **Identity Verification:** Automatically verifies model hashes against the official Hugging Face registry to detect Man-in-the-Middle attacks.
-*   **License Firewall:** Blocks models with restrictive licenses (e.g., Non-Commercial, AGPL) from entering your production pipeline. Veritensor performs a hybrid check: it inspects embedded file metadata first, and automatically falls back to the Hugging Face API if metadata is missing (requires `--repo`).
+*   **License Firewall:** Blocks models with restrictive licenses (e.g., Non-Commercial, AGPL). Veritensor performs a **hybrid check**: it inspects embedded file metadata first, and automatically falls back to the Hugging Face API if metadata is missing (requires `--repo`).
 *   **Supply Chain Security:** Integrates with **Sigstore Cosign** to sign Docker containers. Includes **timestamps** to prevent replay attacks.
 *   **CI/CD Native:** Ready for GitHub Actions, GitLab, and Pre-commit pipelines.
 
@@ -71,6 +69,7 @@ veritensor scan ./pytorch_model.bin --repo meta-llama/Llama-2-7b
 ### 3. License Compliance Check
 Veritensor automatically reads metadata from safetensors and GGUF files.
 If a model has a Non-Commercial license (e.g., cc-by-nc-4.0), it will raise a HIGH severity alert.
+
 To override this (Break-glass mode), use:
 ```bash
 veritensor scan ./model.safetensors --force
@@ -141,7 +140,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Scan Models
-        uses: ArseniiBrazhnyk/Veritensor@v1.2.0
+        uses: ArseniiBrazhnyk/Veritensor@v1.3.0
         with:
           path: './models'
           repo: 'meta-llama/Llama-2-7b' # Optional: Verify integrity
@@ -153,7 +152,7 @@ Prevent committing malicious models to your repository. Add this to .pre-commit-
 ```yaml
 repos:
   - repo: https://github.com/ArseniiBrazhnyk/Veritensor
-    rev: v1.2.0
+    rev: v1.3.0
     hooks:
       - id: veritensor-scan
 ```
@@ -169,7 +168,7 @@ repos:
 | **Keras** | `.h5`, `.keras` | Lambda Layer Detection & Config Analysis |
 | **Safetensors** | `.safetensors` | Header Parsing & Metadata Validation |
 | **GGUF** | `.gguf` | Binary Parsing & Metadata Validation |
-
+| **Python Wheel** | `.whl` | Archive Inspection & Heuristic Analysis |
 ---
 
 ## ⚙️ Configuration
