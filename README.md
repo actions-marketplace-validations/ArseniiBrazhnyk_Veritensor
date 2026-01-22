@@ -140,7 +140,7 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Scan Models
-        uses: ArseniiBrazhnyk/Veritensor@v1.3.0
+        uses: ArseniiBrazhnyk/Veritensor@v1.3.1
         with:
           path: './models'
           repo: 'meta-llama/Llama-2-7b' # Optional: Verify integrity
@@ -152,7 +152,7 @@ Prevent committing malicious models to your repository. Add this to .pre-commit-
 ```yaml
 repos:
   - repo: https://github.com/ArseniiBrazhnyk/Veritensor
-    rev: v1.3.0
+    rev: v1.3.1
     hooks:
       - id: veritensor-scan
 ```
