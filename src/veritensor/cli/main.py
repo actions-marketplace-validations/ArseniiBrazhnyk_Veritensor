@@ -90,7 +90,7 @@ def scan(
     is_machine_output = json_output or sarif_output or sbom_output
 
     if not is_machine_output:
-        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.3.0", border_style="cyan"))
+        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.3.1", border_style="cyan"))
 
     files_to_scan = []
     if path.is_file():
@@ -310,7 +310,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.3.0 (Community Edition)")
+    console.print("Veritensor v1.3.1 (Community Edition)")
 
 @app.command()
 def init():
