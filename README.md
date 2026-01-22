@@ -5,8 +5,9 @@
 [![Docker Image](https://img.shields.io/docker/v/arseniibrazhnyk/veritensor?label=docker&color=blue&logo=docker&logoColor=white)](https://hub.docker.com/r/arseniibrazhnyk/veritensor)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
 [![CI](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/scanner-ci.yaml/badge.svg)](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/scanner-ci.yaml)
+[![Security](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/security.yaml/badge.svg)](https://github.com/ArseniiBrazhnyk/Veritensor/actions/workflows/security.yaml)
 
-**Veritensor** is the Zero-Trust security platform for the AI Supply Chain. We replace naive model scanning with deep AST analysis and cryptographic verification.
+**Veritensor** is the Zero-Trust security tool for the AI Supply Chain. It replace naive model scanning with deep AST analysis and cryptographic verification.
 
 Unlike standard antiviruses, Veritensor understands AI formats (**Pickle, PyTorch, Keras, GGUF, Wheels**) and ensures that your models:
 1.  **Are Safe:** Do not contain malicious code (RCE, Reverse Shells, Lambda injections).
