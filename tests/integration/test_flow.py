@@ -1,5 +1,6 @@
 from typer.testing import CliRunner
 from veritensor.cli.main import app
+from unittest.mock import patch, MagicMock
 
 runner = CliRunner()
 
