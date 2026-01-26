@@ -30,7 +30,7 @@ def test_cli_force_deprecated(infected_pickle_path):
 @patch("requests.get")
 def test_cli_update(mock_get, tmp_path):
     """
-    Тестирует команду update с имитацией ответа от GitHub.
+    It is testing the update command with a simulated response from GitHub.
     """
     # Fake the server's response
     mock_response = MagicMock()
@@ -44,7 +44,7 @@ unsafe_globals:
     mock_get.return_value = mock_response
 
     # Fake the user's home directory so as not to trash the real system.
-    # We're talking: "When the code asks for Path.home(), return the temporary test folder"
+    # "When the code asks for Path.home(), return the temporary test folder"
     with patch("pathlib.Path.home", return_value=tmp_path):
         # Run the command
         result = runner.invoke(app, ["update"])
