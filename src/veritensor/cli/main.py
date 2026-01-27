@@ -93,7 +93,7 @@ def scan(
     is_machine_output = json_output or sarif_output or sbom_output
 
     if not is_machine_output:
-        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.3.2", border_style="cyan"))
+        console.print(Panel.fit(f"🛡️  [bold cyan]Veritensor Security Scanner[/bold cyan] v1.4.0", border_style="cyan"))
 
     # Handle S3 or Local Path
     files_to_scan = []
@@ -159,7 +159,8 @@ def scan(
                             scan_res.identity_verified = True
                         elif verification == "MISMATCH":
                             # Check for LFS pointer confusion
-                            file_size = file_path_.stat().st_size
+                            # FIX: Fixed typo file_path_ -> file_path
+                            file_size = file_path.stat().st_size
                             if file_size < 2048:
                                 scan_res.add_threat(
                                     f"CRITICAL: Hash mismatch! Likely a Git LFS pointer ({file_size} bytes). "
@@ -174,36 +175,36 @@ def scan(
             # 1. Pickle / PyTorch (Supports S3 via streaming)
             if ext in PICKLE_EXTS:
                 try:
+                    # FIX: Stream processing to avoid OOM on large files
                     with get_stream_for_path(file_path_str) as f:
-                        # Read content (S3 stream or local file)
-                        # For large files, scan_pickle_stream handles the stream directly
-                        # But currently scan_pickle_stream expects bytes. 
-                        # For MVP we read all. Future: stream parsing.
-                        content = f.read() 
-                        threats = scan_pickle_stream(content, strict_mode=True)
+                        # We pass the stream directly. The engine handles reading.
+                        threats = scan_pickle_stream(f, strict_mode=True)
                 except Exception as e:
-                    threats.append(f"CRITICAL: Scan Error: {str(e)}")
+                    threats = [f"CRITICAL: Scan Error: {str(e)}"]
+                    scan_res.add_threat(threats[0])
+                else:
+                    if threats:
+                        for t in threats:
+                            scan_res.add_threat(t)
             
             # 2. Keras / H5 (Local only for now)
             elif ext in KERAS_EXTS:
                 if file_path_str.startswith("s3://"):
-                    threats.append("WARNING: S3 scanning not supported for Keras yet.")
+                    scan_res.add_threat("WARNING: S3 scanning not supported for Keras yet.")
                 else:
                     threats = scan_keras_file(file_path)
+                    for t in threats: scan_res.add_threat(t)
             
             # 3. RAG / Text Files (New)
             elif ext in TEXT_EXTENSIONS:
                 if file_path_str.startswith("s3://"):
-                     threats.append("WARNING: S3 scanning not supported for Text files yet.")
+                     scan_res.add_threat("WARNING: S3 scanning not supported for Text files yet.")
                 else:
                     try:
                         threats = scan_text_file(file_path)
+                        for t in threats: scan_res.add_threat(t)
                     except Exception as e:
-                        threats.append(f"WARNING: RAG Scan Error: {str(e)}")
-
-            if threats:
-                for t in threats:
-                    scan_res.add_threat(t)
+                        scan_res.add_threat(f"WARNING: RAG Scan Error: {str(e)}")
 
             # --- C. License Check ---
             # Only for local files
@@ -419,7 +420,7 @@ def version():
     """
     Show version info.
     """
-    console.print("Veritensor v1.3.2 (Community Edition)")
+    console.print("Veritensor v1.4.0 (Community Edition)")
 
 @app.command()
 def init():
