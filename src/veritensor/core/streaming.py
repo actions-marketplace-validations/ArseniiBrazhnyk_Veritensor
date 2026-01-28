@@ -7,7 +7,6 @@ import logging
 import boto3
 from urllib.parse import urlparse
 from typing import Optional, List, Any
-import logging
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError, ClientError
@@ -103,7 +102,7 @@ class RemoteStream(io.IOBase):
 class S3Stream(io.IOBase):
     """
     A file-like object that reads data from S3 using Range requests.
-    Requires AWS credentials in environment variables or ~/.aws/credentials.
+    Supports both Authenticated (Env vars) and Anonymous (Public buckets) access.
     """
     def __init__(self, s3_url: str):
         parsed = urlparse(s3_url)
@@ -112,13 +111,13 @@ class S3Stream(io.IOBase):
         self.pos = 0
         self._closed = False
 
-
-    self.s3 = boto3.client("s3")
+        # 1. Try standard client (Env vars / ~/.aws/credentials / IAM Role)
+        self.s3 = boto3.client("s3")
         
         try:
             self.size = self._fetch_size()
         except (NoCredentialsError, ClientError) as e:
-            # If it's a 404 (Not Found), there's no point in trying anonymously
+            # Check if it is a 404 (Not Found) - no point trying anonymous
             error_code = e.response['Error']['Code'] if hasattr(e, 'response') else ""
             if "404" in str(error_code):
                 logger.error(f"S3 Object not found: {s3_url}")
@@ -128,6 +127,15 @@ class S3Stream(io.IOBase):
             logger.info(f"AWS Creds failed ({error_code}). Trying anonymous access for {s3_url}...")
             self.s3 = boto3.client("s3", config=Config(signature_version=UNSIGNED))
             self.size = self._fetch_size()
+
+    def _fetch_size(self) -> int:
+        try:
+            resp = self.s3.head_object(Bucket=self.bucket, Key=self.key)
+            return resp["ContentLength"]
+        except Exception as e:
+            # We catch this in __init__ to handle fallback, but if it fails again, we log
+            logger.debug(f"Failed to access S3 object {self.bucket}/{self.key}: {e}")
+            raise
 
     def read(self, size: int = -1) -> bytes:
         if self._closed: raise ValueError("I/O operation on closed file.")
@@ -181,12 +189,6 @@ def resolve_huggingface_repo(repo_id: str) -> List[str]:
     """
     Queries the Hugging Face API to get direct file URLs for a repository.
     Handles 'hf://' prefix.
-    
-    Args:
-        repo_id: e.g. "meta-llama/Meta-Llama-3-8B" or "hf://meta-llama/..."
-    
-    Returns:
-        List of direct download URLs for model files (.pt, .safetensors, .gguf, .bin).
     """
     if repo_id.startswith("hf://"):
         repo_id = repo_id[len("hf://"):]
