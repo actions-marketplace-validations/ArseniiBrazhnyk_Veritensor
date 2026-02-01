@@ -53,7 +53,7 @@ jobs:
         run: docker build -t veritensor:test .
 
       - name: Run Trivy Vulnerability Scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.69.0
         with:
           image-ref: 'veritensor:test'
           format: 'table'
