@@ -151,17 +151,43 @@ suspicious_strings:
   - "winscp.ini"   
   - ".aws/credentials"
   - ".aws/config"
+  - ".pypirc"          # PyPI credentials
+  - ".git-credentials"
+
+  # --- Cloud & API Keys (Specific Names) ---
   - "AWS_ACCESS_KEY_ID"
   - "AWS_SECRET_ACCESS_KEY"
   - "OPENAI_API_KEY"
+  - "ANTHROPIC_API_KEY"
+  - "HF_TOKEN"
+  - "HUGGINGFACE_TOKEN"
+  - "SLACK_BOT_TOKEN"
+  
+  # --- Private Keys (Content Headers) ---
+  - "-----BEGIN OPENSSH PRIVATE KEY-----"
+  - "-----BEGIN RSA PRIVATE KEY-----"
+  - "-----BEGIN PRIVATE KEY-----"
+  - "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+  
+  # --- Network IOCs ---
   - "169.254.169.254" # AWS Metadata IP
   - "metadata.google.internal"
   - "ngrok"
   - "pastebin"
-  - "regex:(?i)\\bcurl\\b"  # (?i) = ignore case, \b = word boundary
+  - "regex:(?i)\\bcurl\\b" # (?i) = ignore case, \b = word boundary
   - "regex:(?i)\\bwget\\b"
   - "regex:(?i)\\bbash\\b"
   - "regex:(?i)\\bsh\\b"
+  
+  # --- High Entropy Tokens (Regex) ---
+  # Hugging Face (hf_ + 30+ chars)
+  - "regex:hf_[a-zA-Z0-9]{30,}"
+  # GitHub Personal Access Token (ghp_ + chars)
+  - "regex:ghp_[a-zA-Z0-9]{30,}"
+  # Slack Token (xoxb/xoxp)
+  - "regex:xox[baprs]-[a-zA-Z0-9]{10,}"
+  # Google API Key (AIza...)
+  - "regex:AIza[0-9A-Za-z-_]{35}"
 
 # --- 3. RAG / Prompt Injections ---
 # Sources: JailbreakChat, OWASP LLM Top 10, Giskard
