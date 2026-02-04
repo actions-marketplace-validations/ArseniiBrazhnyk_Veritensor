@@ -10,18 +10,28 @@ from typing import Optional, List, Any
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError, ClientError
+from veritensor.core.networking import validate_url_safety
 
 logger = logging.getLogger(__name__)
 
 ALLOWED_DOMAINS = {"huggingface.co", "cdn-lfs.huggingface.co"}
+
+try:
+    import boto3
+    from botocore import UNSIGNED
+    from botocore.config import Config
+    from botocore.exceptions import NoCredentialsError, ClientError
+    AWS_AVAILABLE = True
+except ImportError:
+    AWS_AVAILABLE = False
 
 class RemoteStream(io.IOBase):
     """
     A file-like object that reads data from a URL using HTTP Range headers.
     """
     def __init__(self, url: str, session: Optional[requests.Session] = None):
-        self._validate_url(url)  
-        self.url = url
+        self._validate_url(url)
+        validate_url_safety(url)
         self.session = session or requests.Session()
         self.pos = 0
         self.size = self._fetch_size()
@@ -105,6 +115,8 @@ class S3Stream(io.IOBase):
     Supports both Authenticated (Env vars) and Anonymous (Public buckets) access.
     """
     def __init__(self, s3_url: str):
+        if not AWS_AVAILABLE:
+            raise ImportError("AWS support not installed. Run 'pip install veritensor[aws]'")
         parsed = urlparse(s3_url)
         self.bucket = parsed.netloc
         self.key = parsed.path.lstrip("/")
