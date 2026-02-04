@@ -4,18 +4,13 @@
 import io
 import requests
 import logging
-import boto3
 from urllib.parse import urlparse
 from typing import Optional, List, Any
-from botocore import UNSIGNED
-from botocore.config import Config
-from botocore.exceptions import NoCredentialsError, ClientError
 from veritensor.core.networking import validate_url_safety
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_DOMAINS = {"huggingface.co", "cdn-lfs.huggingface.co"}
-
+# --- Optional AWS Import ---
 try:
     import boto3
     from botocore import UNSIGNED
@@ -25,13 +20,16 @@ try:
 except ImportError:
     AWS_AVAILABLE = False
 
+ALLOWED_DOMAINS = {"huggingface.co", "cdn-lfs.huggingface.co"}
+
 class RemoteStream(io.IOBase):
     """
     A file-like object that reads data from a URL using HTTP Range headers.
     """
     def __init__(self, url: str, session: Optional[requests.Session] = None):
         self._validate_url(url)
-        validate_url_safety(url)
+        validate_url_safety(url) # SSRF Protection
+        self.url = url
         self.session = session or requests.Session()
         self.pos = 0
         self.size = self._fetch_size()
@@ -112,30 +110,29 @@ class RemoteStream(io.IOBase):
 class S3Stream(io.IOBase):
     """
     A file-like object that reads data from S3 using Range requests.
-    Supports both Authenticated (Env vars) and Anonymous (Public buckets) access.
     """
     def __init__(self, s3_url: str):
         if not AWS_AVAILABLE:
             raise ImportError("AWS support not installed. Run 'pip install veritensor[aws]'")
+
         parsed = urlparse(s3_url)
         self.bucket = parsed.netloc
         self.key = parsed.path.lstrip("/")
         self.pos = 0
         self._closed = False
 
-        # 1. Try standard client (Env vars / ~/.aws/credentials / IAM Role)
+        # 1. Try standard client
         self.s3 = boto3.client("s3")
         
         try:
             self.size = self._fetch_size()
         except (NoCredentialsError, ClientError) as e:
-            # Check if it is a 404 (Not Found) - no point trying anonymous
             error_code = e.response['Error']['Code'] if hasattr(e, 'response') else ""
             if "404" in str(error_code):
                 logger.error(f"S3 Object not found: {s3_url}")
                 raise
 
-            # 2. Fallback: Try anonymous access (for public buckets)
+            # 2. Fallback: Anonymous
             logger.info(f"AWS Creds failed ({error_code}). Trying anonymous access for {s3_url}...")
             self.s3 = boto3.client("s3", config=Config(signature_version=UNSIGNED))
             self.size = self._fetch_size()
@@ -145,7 +142,6 @@ class S3Stream(io.IOBase):
             resp = self.s3.head_object(Bucket=self.bucket, Key=self.key)
             return resp["ContentLength"]
         except Exception as e:
-            # We catch this in __init__ to handle fallback, but if it fails again, we log
             logger.debug(f"Failed to access S3 object {self.bucket}/{self.key}: {e}")
             raise
 
@@ -160,7 +156,6 @@ class S3Stream(io.IOBase):
 
         if end < self.pos: return b""
 
-        # S3 Range is inclusive (e.g. "bytes=0-9")
         range_header = f"bytes={self.pos}-{end}"
         try:
             resp = self.s3.get_object(Bucket=self.bucket, Key=self.key, Range=range_header)
@@ -194,7 +189,6 @@ def get_stream_for_path(path: str):
     elif path.startswith("http://") or path.startswith("https://"):
         return RemoteStream(path)
     else:
-        # Local file
         return open(path, "rb")
 
 def resolve_huggingface_repo(repo_id: str) -> List[str]:
