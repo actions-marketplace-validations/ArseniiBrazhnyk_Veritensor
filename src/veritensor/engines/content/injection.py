@@ -63,7 +63,7 @@ def scan_document(file_path: Path) -> List[str]:
         # 1. Get Text Generator (Yields chunks)
         text_generator = None
         
-        if ext in TEXT_EXTS:
+        if ext in TEXT_EXTENSIONS:
             text_generator = _read_text_sliding(file_path)
         elif ext == ".pdf" and PDF_AVAILABLE:
             # PDF/Docx usually fit in memory, so we treat them as one big chunk
