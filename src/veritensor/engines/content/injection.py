@@ -5,6 +5,7 @@ import logging
 from typing import List
 from pathlib import Path
 from veritensor.engines.static.rules import SignatureLoader, is_match
+from typing import Generator, List, Optional
 
 logger = logging.getLogger(__name__)
 
