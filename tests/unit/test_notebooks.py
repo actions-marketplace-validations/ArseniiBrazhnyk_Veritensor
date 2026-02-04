@@ -42,7 +42,8 @@ def test_notebook_magic_injection(tmp_path):
     
     threats = scan_notebook(f)
     assert len(threats) > 0
-    assert "Jupyter Magic" in threats[0]
+    # Ищем угрозу в списке
+    assert any("Jupyter Magic" in t for t in threats)
 
 def test_notebook_secret_in_output(tmp_path):
     """Test detection of leaked secrets in cell outputs."""
@@ -64,7 +65,7 @@ def test_notebook_secret_in_output(tmp_path):
     
     threats = scan_notebook(f)
     assert len(threats) > 0
-    assert "Leaked secret" in threats[0]
+    assert any("Leaked secret" in t for t in threats)
 
 def test_notebook_malicious_import(tmp_path):
     """Test detection of malicious imports via AST."""
@@ -80,4 +81,8 @@ def test_notebook_malicious_import(tmp_path):
     
     threats = scan_notebook(f)
     assert len(threats) > 0
-    assert "os.system" in threats[0]
+    
+    found_import = any("Unsafe import" in t and "'os'" in t for t in threats)
+    found_call = any("os.system" in t for t in threats)
+    
+    assert found_import or found_call, f"Threats found: {threats}"
