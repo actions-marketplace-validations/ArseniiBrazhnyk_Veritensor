@@ -46,7 +46,8 @@ test = [
 # Optional dependencies for RAG document scanning (PDF, DOCX)
 rag = [
     "pypdf>=4.0.0",
-    "python-docx>=1.1.0"
+    "python-docx>=1.1.0",
+    "python-pptx>=0.6.21"
 ]
 
 # AWS Support (S3 scanning)
