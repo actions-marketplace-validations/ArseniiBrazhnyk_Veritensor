@@ -33,7 +33,7 @@ TEXT_EXTENSIONS = {
     ".log", ".out", ".err"
 }
 
-DOC_EXTENSIONS = {".pdf", ".docx"}
+DOC_EXTENSIONS = {".pdf", ".docx", ".pptx"}
 
 try:
     import pypdf
@@ -46,6 +46,12 @@ try:
     DOCX_AVAILABLE = True
 except ImportError:
     DOCX_AVAILABLE = False
+
+try:
+    from pptx import Presentation
+    PPTX_AVAILABLE = True
+except ImportError:
+    PPTX_AVAILABLE = False
 
 CHUNK_SIZE = 1024 * 1024 # 1MB chunks
 OVERLAP_SIZE = 4096      # 4KB overlap (enough for "Ignore previous instructions")
@@ -74,6 +80,8 @@ def scan_document(file_path: Path) -> List[str]:
         elif ext == ".docx" and DOCX_AVAILABLE:
             full_text = _read_docx(file_path)
             text_generator = _yield_string_chunks(full_text)
+        elif ext == ".pptx":
+            content = _extract_text_from_pptx(path)
         else:
             return []
 
@@ -147,3 +155,20 @@ def _read_docx(path: Path) -> str:
     except Exception as e:
         logger.debug(f"DOCX parsing error: {e}")
         return ""
+
+def _extract_text_from_pptx(path: Path) -> str:
+    """Extracts text from all slides of a presentation."""
+    if not PPTX_AVAILABLE:
+        return "ERROR: python-pptx not installed."
+    
+    text_runs = []
+    try:
+        prs = Presentation(path)
+        for slide in prs.slides:
+            for shape in slide.shapes:
+                if hasattr(shape, "text"):
+                    text_runs.append(shape.text)
+    except Exception as e:
+        logger.warning(f"Failed to parse PPTX {path.name}: {e}")
+        
+    return "\n".join(text_runs)
