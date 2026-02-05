@@ -1,8 +1,11 @@
 import pytest
 import json
-import pandas as pd
 from pathlib import Path
 from veritensor.engines.data.dataset_engine import scan_dataset
+
+pd = pytest.importorskip("pandas") 
+pa = pytest.importorskip("pyarrow")
+pq = pytest.importorskip("pyarrow.parquet")
 
 @pytest.fixture
 def temp_data_dir(tmp_path):
