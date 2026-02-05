@@ -54,9 +54,14 @@ aws = [
     "boto3>=1.28.0"
 ]
 
+data = [
+    "pyarrow>=14.0.0",
+    "pandas>=2.0.0" 
+]
+
 # All (Dev environment)
 dev = [
-    "veritensor[aws,rag,test]"
+    "veritensor[aws,rag,test,data]"
 ]
 
 [project.urls]
