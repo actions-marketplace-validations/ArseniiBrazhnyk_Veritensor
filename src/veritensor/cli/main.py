@@ -48,7 +48,11 @@ SAFETENSORS_EXTS = {".safetensors"}
 GGUF_EXTS = {".gguf"}
 NOTEBOOK_EXTS = {".ipynb"}
 ALL_DOC_EXTENSIONS = TEXT_EXTENSIONS.union(DOC_EXTENSIONS)
-DATASET_EXTS = {".parquet", ".csv", ".jsonl"}
+DATASET_EXTS = {
+    ".parquet", 
+    ".csv", ".tsv",               
+    ".jsonl", ".ndjson", ".ldjson"      
+}
 
 SEVERITY_LEVELS = {
     "LOW": 1,
