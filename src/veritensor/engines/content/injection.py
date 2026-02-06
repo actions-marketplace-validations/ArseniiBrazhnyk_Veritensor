@@ -32,7 +32,7 @@ TEXT_EXTENSIONS = {
     ".log", ".out", ".err"
 }
 
-DOC_EXTENSIONS = {".pdf", ".docx", ".pptx"}
+DOC_EXTS = {".pdf", ".docx", ".pptx"}
 
 try:
     import pypdf
