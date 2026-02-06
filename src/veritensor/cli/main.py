@@ -37,10 +37,10 @@ except ImportError:
 
 from veritensor.integrations.cosign import sign_container, is_cosign_available, generate_key_pair
 from veritensor.integrations.huggingface import HuggingFaceClient
-# Import constants from injection to fix ImportErrors
 from veritensor.engines.content.injection import scan_document, TEXT_EXTENSIONS, DOC_EXTS
 from veritensor.engines.static.notebook_engine import scan_notebook
 from veritensor.engines.data.dataset_engine import scan_dataset
+from veritensor.engines.static.dependency_engine import scan_dependencies # <--- NEW IMPORT
 from veritensor.reporting.telemetry import send_report
 
 # --- Reporting Modules ---
@@ -57,6 +57,7 @@ PICKLE_EXTS = {".pt", ".pth", ".bin", ".pkl", ".ckpt", ".whl"}
 KERAS_EXTS = {".h5", ".keras"}
 NOTEBOOK_EXTS = {".ipynb"}
 DATASET_EXTS = {".parquet", ".csv", ".jsonl"}
+DEP_FILES = {"requirements.txt", "pyproject.toml", "Pipfile", "poetry.lock"} # <--- NEW CONSTANT
 ALL_DOC_EXTS = TEXT_EXTENSIONS.union(DOC_EXTS)
 
 SEVERITY_LEVELS = {
@@ -85,9 +86,8 @@ def scan_worker(args: Tuple[str, VeritensorConfig, Optional[str], bool, bool, bo
     """
     file_path_str, config, repo, ignore_license, full_scan_dataset, is_s3 = args
     
-    # --- FIX 1: Robust Path Handling for S3 vs Local ---
+    # Robust Path Handling for S3 vs Local
     if is_s3:
-        # Do NOT use Path() for S3 URLs, it breaks on Windows
         file_name = file_path_str.split("/")[-1]
         ext = os.path.splitext(file_name)[1].lower()
         file_path = None 
@@ -166,6 +166,15 @@ def scan_worker(args: Tuple[str, VeritensorConfig, Optional[str], bool, bool, bo
             else:
                 if file_path:
                     threats = scan_dataset(file_path, full_scan=full_scan_dataset)
+                    for t in threats: scan_res.add_threat(t)
+        
+        # 6. Dependencies (Supply Chain) <--- NEW BLOCK
+        elif file_name in DEP_FILES:
+            if is_s3:
+                 scan_res.add_threat("WARNING: S3 scanning not supported for Dependencies yet.")
+            else:
+                if file_path:
+                    threats = scan_dependencies(file_path)
                     for t in threats: scan_res.add_threat(t)
 
     except Exception as e:
@@ -291,7 +300,6 @@ def scan(
             
             main_task = progress.add_task("Scanning...", total=len(tasks))
             
-            # --- FIX 2: Explicit Executor Management ---
             executor = concurrent.futures.ProcessPoolExecutor(max_workers=jobs)
             
             future_to_file = {
@@ -316,7 +324,6 @@ def scan(
                 progress.advance(main_task)
 
     finally:
-        # Guarantee process cleanup to prevent CI hangs
         if executor:
             executor.shutdown(wait=True)
         hash_cache.close()
@@ -390,24 +397,35 @@ def scan(
 
 
 def _print_table(results: List[ScanResult]):
-    table = Table(title="Scan Results")
-    table.add_column("File", style="cyan")
+    """
+    Renders results in a smart table with threat grouping.
+    """
+    table = Table(title="🛡️ Veritensor Scan Report", header_style="bold magenta")
+    table.add_column("File", style="cyan", no_wrap=True)
     table.add_column("Status", justify="center")
-    table.add_column("License", style="blue") 
-    table.add_column("Threats", style="magenta")
+    table.add_column("Summary of Threats", style="white")
 
     for res in results:
         status_style = "green" if res.status == "PASS" else "bold red"
-        lic = res.detected_license or "Unknown"
-        threats_preview = ""
-        if res.threats:
-            threats_preview = res.threats[0]
-            if len(res.threats) > 1:
-                threats_preview += f" (+{len(res.threats)-1} more)"
+        
+        # Threat Grouping Logic
+        if not res.threats:
+            display_threats = "[dim]None[/dim]"
         else:
-            threats_preview = "None"
+            # Remove duplicates while preserving order
+            unique_threats = list(dict.fromkeys(res.threats))
+            summary = unique_threats[:2]
             
-        table.add_row(res.file_path, f"[{status_style}]{res.status}[/{status_style}]", lic, threats_preview)
+            if len(unique_threats) > 2:
+                summary.append(f"[bold yellow]+{len(unique_threats)-2} more issues...[/bold yellow]")
+            
+            display_threats = "\n".join(summary)
+
+        table.add_row(
+            res.file_path.split("/")[-1], # Show only filename for cleanliness
+            f"[{status_style}]{res.status}[/{status_style}]",
+            display_threats
+        )
     console.print(table)
 
 
