@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import List, Generator, Optional, Any
 
 from veritensor.engines.static.rules import SignatureLoader, is_match
+from veritensor.engines.content.pii import PIIScanner  # <--- NEW IMPORT
 
 logger = logging.getLogger(__name__)
 
@@ -60,32 +61,41 @@ def scan_dataset(file_path: Path, full_scan: bool = False) -> List[str]:
 
         # 2. Scan the stream
         row_count = 0
+        pii_buffer = [] # Buffer for PII sampling
+        
         for text_chunk in text_stream:
             if not text_chunk or len(text_chunk) < 5:
                 continue
                 
             # Limit string length to prevent Regex DoS (ReDoS)
-            # We truncate strictly to 4KB per cell analysis
             if len(text_chunk) > 4096:
                 text_chunk = text_chunk[:4096]
 
             # A. Prompt Injection (Data Poisoning)
-            # OPTIMIZATION: Single pass loop instead of double check
             for pat in injections:
                 if is_match(text_chunk, [pat]):
                     threats.append(f"HIGH: Data Poisoning (Injection) detected in {file_path.name}: '{pat}'")
                     return threats # Fail fast
 
-            # B. Malicious URLs / Secrets / PII
+            # B. Malicious URLs / Secrets / PII (Regex)
             for pat in suspicious:
                 if is_match(text_chunk, [pat]):
-                    # Determine label
                     label = "Malicious URL" if "http" in pat else "Secret/PII"
                     threats.append(f"MEDIUM: {label} detected in dataset {file_path.name}: '{pat}'")
             
+            # C. Collect sample for PII (ML)
+            if len(pii_buffer) < 50:
+                pii_buffer.append(text_chunk)
+
             row_count += 1
             if row_limit and row_count >= row_limit:
                 break
+        
+        # 3. Run PII Scan on collected sample
+        if pii_buffer:
+            combined_sample = "\n".join(pii_buffer)
+            pii_threats = PIIScanner.scan(combined_sample)
+            threats.extend(pii_threats)
                 
     except Exception as e:
         logger.warning(f"Failed to scan dataset {file_path}: {e}")
@@ -98,9 +108,8 @@ def _stream_parquet(path: Path, limit: Optional[int]) -> Generator[str, None, No
     try:
         parquet_file = pq.ParquetFile(path)
     except Exception:
-        return # Invalid parquet
+        return 
 
-    # Identify string columns to avoid scanning integers/floats (Optimization)
     str_columns = []
     for i, field in enumerate(parquet_file.schema_arrow):
         if pa.types.is_string(field.type) or pa.types.is_large_string(field.type):
@@ -109,7 +118,6 @@ def _stream_parquet(path: Path, limit: Optional[int]) -> Generator[str, None, No
     if not str_columns:
         return
 
-    # Iterate batches
     count = 0
     for batch in parquet_file.iter_batches(batch_size=CHUNK_SIZE, columns=str_columns):
         for col_name in str_columns:
@@ -128,7 +136,7 @@ def _stream_csv(path: Path, limit: Optional[int]) -> Generator[str, None, None]:
     sep = "\t" if ext == ".tsv" else ","
     try:
         import pandas as pd
-        header_df = pd.read_csv(path, nrows=0)
+        header_df = pd.read_csv(path, nrows=0, sep=sep)
         text_cols = header_df.select_dtypes(include=['object']).columns.tolist()
         
         if not text_cols:
@@ -171,7 +179,6 @@ def _stream_jsonl(path: Path, limit: Optional[int]) -> Generator[str, None, None
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         count = 0
         for line in f:
-            # OOM PROTECTION: Skip huge lines before parsing
             if len(line) > MAX_JSON_LINE_SIZE:
                 continue
 
@@ -186,19 +193,13 @@ def _stream_jsonl(path: Path, limit: Optional[int]) -> Generator[str, None, None
                 break
 
 def _extract_strings_from_json(data: Any) -> Generator[str, None, None]:
-    """
-    Iterative (Stack-based) extraction to prevent RecursionError on deep JSON.
-    """
+    """Iterative (Stack-based) extraction to prevent RecursionError."""
     stack = [data]
-    
     while stack:
         current = stack.pop()
-        
         if isinstance(current, str):
             yield current
         elif isinstance(current, dict):
-            # Push values to stack
             stack.extend(current.values())
         elif isinstance(current, list):
-            # Push items to stack
             stack.extend(current)
