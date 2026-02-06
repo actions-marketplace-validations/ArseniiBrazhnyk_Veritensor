@@ -57,7 +57,7 @@ PICKLE_EXTS = {".pt", ".pth", ".bin", ".pkl", ".ckpt", ".whl"}
 KERAS_EXTS = {".h5", ".keras"}
 NOTEBOOK_EXTS = {".ipynb"}
 DATASET_EXTS = {".parquet", ".csv", ".jsonl"}
-DEP_FILES = {"requirements.txt", "pyproject.toml", "Pipfile", "poetry.lock"} # <--- NEW CONSTANT
+DEP_FILES = {"requirements.txt", "pyproject.toml", "Pipfile", "poetry.lock", "Pipfile.lock"} 
 ALL_DOC_EXTS = TEXT_EXTENSIONS.union(DOC_EXTS)
 
 SEVERITY_LEVELS = {
