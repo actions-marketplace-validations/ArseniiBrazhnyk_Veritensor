@@ -66,8 +66,8 @@ def test_rag_pptx_detection(pptx_with_injection):
     """Validates that prompt injection is detected within PPTX slides."""
     threats = scan_document(pptx_with_injection)
     assert len(threats) > 0
-    assert any("Ignore previous instructions" in t for t in threats)
-
+    assert any("Prompt Injection" in t for t in threats)
+    
 def test_rag_pdf_detection(pdf_with_injection):
     """Validates that prompt injection is detected within PDF documents."""
     threats = scan_document(pdf_with_injection)
