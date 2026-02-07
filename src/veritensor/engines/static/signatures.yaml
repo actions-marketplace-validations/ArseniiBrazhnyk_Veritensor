@@ -153,6 +153,17 @@ suspicious_strings:
   - ".aws/config"
   - ".pypirc"          # PyPI credentials
   - ".git-credentials"
+  # CSS Hiding Techniques
+  - "regex:font-size:\\s*0px"
+  - "regex:font-size:\\s*1px"
+  - "regex:color:\\s*white"
+  - "regex:color:\\s*#ffffff"
+  - "regex:color:\\s*#fff"
+  - "regex:display:\\s*none"
+  - "regex:visibility:\\s*hidden"
+  - "regex:opacity:\\s*0"
+  - "regex:position:\\s*absolute;\\s*left:\\s*-9999px"
+  - "regex:z-index:\\s*-"
 
   # --- Cloud & API Keys (Specific Names) ---
   - "AWS_ACCESS_KEY_ID"
@@ -295,3 +306,12 @@ prompt_injections:
   # MISC / SOCIAL-ENGINEERING
   # =================================================================
   - "regex:(?i)my\\s+password\\s+is|here\\s+is\\s+the\\s+secret|i\\s+will\\s+pay\\s+you|forbidden\\s+content\\s+allowed"
+  
+  # Job/Context Manipulation
+  - "regex:(?i)updated\\s+requirements"
+  - "regex:(?i)ignore\\s+skills"
+  - "regex:(?i)requirements\\s+have\\s+been\\s+waived"
+  - "regex:(?i)consider\\s+all\\s+candidates"
+  - "regex:(?i)new\\s+hiring\\s+criteria"
+  - "regex:(?i)internal\\s+update"
+  - "regex:(?i)hiring_note"
