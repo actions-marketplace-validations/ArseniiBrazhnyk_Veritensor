@@ -94,6 +94,23 @@ def scan_document(file_path: Path) -> List[str]:
             # Normalize whitespace to catch "ignore \n instructions" from PDF extraction
             # Replaces newlines and multiple spaces with a single space
             clean_chunk = " ".join(chunk.split())
+            spaced_threat_found = False
+            if len(clean_chunk) > 50 and (clean_chunk.count(" ") / len(clean_chunk)) > 0.3:
+                # We're trying to remove spaces between letters (but not between words, although it's hard to tell)
+                # The most reliable option for injection is to test a fully compressed string
+                collapsed_chunk = clean_chunk.replace(" ", "")
+                
+                # Check the compressed string for keywords (without spaces)
+                # 
+                CRITICAL_KEYWORDS = [
+                   "asananswer", "alwayswrite", "ignoreprevious", "systemoverride", 
+                   "pwned", "jailbreak"
+                ]
+                
+                for kw in CRITICAL_KEYWORDS:
+                    if kw in collapsed_chunk.lower():
+                        threats.append(f"HIGH: Obfuscated/Spaced Injection detected in {file_path.name}: '{kw}'")
+                        return threats
 
             for pattern in signatures:
                 is_hit = False
@@ -102,19 +119,26 @@ def scan_document(file_path: Path) -> List[str]:
                 if pattern.startswith("regex:"):
                     regex_str = pattern.replace("regex:", "", 1).strip()
                     try:
-                        if re.search(regex_str, clean_chunk, re.IGNORECASE):
+                        # We save the search result in the match variable.
+                        match = re.search(regex_str, clean_chunk, re.IGNORECASE)
+                        if match:
                             is_hit = True
+                            # 
+                            found_text = match.group(0)
+                            if len(found_text) > 100: 
+                                found_text = found_text[:97] + "..."
                     except re.error:
                         logger.warning(f"Invalid regex in signatures: {regex_str}")
 
-                # Check 2: Simple String Match (Case-Insensitive)
+                # Check 2: Simple String Match
                 else:
                     if pattern.lower() in clean_chunk.lower():
                         is_hit = True
+                        found_text = pattern 
                 
                 if is_hit:
-                    threats.append(f"HIGH: Prompt Injection detected in {file_path.name}: '{pattern}'")
-                    return threats # Fail fast on first injection
+                    threats.append(f"HIGH: Prompt Injection detected in {file_path.name}: Found '{found_text}'")
+                    return threats # Fail fast
 
             # --- B. PII Scan (Presidio) ---
             pii_threats = PIIScanner.scan(chunk)
