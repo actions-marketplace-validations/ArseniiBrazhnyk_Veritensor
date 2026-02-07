@@ -58,7 +58,6 @@ CHUNK_SIZE = 1024 * 1024 # 1MB chunks
 OVERLAP_SIZE = 4096      # 4KB overlap
 
 # --- STEALTH ATTACK SIGNATURES (CSS/HTML Hiding) ---
-# These patterns detect attempts to hide text from humans but show it to LLMs.
 STEALTH_PATTERNS = [
     r"font-size:\s*0px",
     r"font-size:\s*1px",
@@ -71,35 +70,26 @@ STEALTH_PATTERNS = [
     r"opacity:\s*0",
     r"position:\s*absolute;\s*left:\s*-\d+px",
     r"z-index:\s*-\d+",
-    r"<!--.*?ignore previous.*?-->", # HTML Comments with injections
-    r"<span[^>]*style=.*?>.*?</span>" # Suspicious spans (generic check)
+    r"<!--.*?ignore previous.*?-->", 
+    r"<span[^>]*style=.*?>.*?</span>" 
 ]
 
 def scan_document(file_path: Path) -> List[str]:
     """
     Universal entry point for scanning documents (RAG Data).
-    Dispatches to specific extractors based on extension.
     """
     ext = file_path.suffix.lower()
     threats = []
     
-    # Load signatures (List of strings, some starting with 'regex:')
     signatures = SignatureLoader.get_prompt_injections()
 
     try:
         # --- PHASE 1: Raw Content Scan (Stealth Detection) ---
-        # We scan the raw file bytes to find HTML/CSS hacks that parsers might strip.
-        # This is critical for PDF/Docx where "color: white" is hidden in the internal structure.
         if ext in DOC_EXTS or ext in TEXT_EXTENSIONS:
             raw_threats = _scan_raw_binary(file_path)
             threats.extend(raw_threats)
-            # If we found explicit stealth attacks, we can return early or continue
-            if raw_threats:
-                # We continue to find specific injection payloads
-                pass
-
+            
         # --- PHASE 2: Extracted Text Scan (Semantic Detection) ---
-        # Get Text Generator (Yields chunks)
         text_generator = None
         
         if ext in TEXT_EXTENSIONS:
@@ -114,16 +104,16 @@ def scan_document(file_path: Path) -> List[str]:
             full_text = _extract_text_from_pptx(file_path)
             text_generator = _yield_string_chunks(full_text)
         else:
-            return threats # Return whatever raw threats we found
+            return threats 
 
         # Scan Extracted Chunks
         for chunk in text_generator:
             if not chunk: continue
 
-            # A. Prompt Injection Logic (Regex + Normalization)
+            # A. Prompt Injection Logic
             clean_chunk = " ".join(chunk.split())
             
-            # Check for Spaced/Obfuscated keywords (e.g. "I g n o r e")
+            # Check for Spaced/Obfuscated keywords
             if len(clean_chunk) > 50 and (clean_chunk.count(" ") / len(clean_chunk)) > 0.3:
                 collapsed_chunk = clean_chunk.replace(" ", "")
                 CRITICAL_KEYWORDS = [
@@ -158,7 +148,7 @@ def scan_document(file_path: Path) -> List[str]:
                     threats.append(f"HIGH: Prompt Injection detected in {file_path.name}: Found '{found_text}'")
                     return threats 
 
-            # B. PII Scan (Presidio)
+            # B. PII Scan
             pii_threats = PIIScanner.scan(chunk)
             if pii_threats:
                 threats.extend(pii_threats)
@@ -174,36 +164,36 @@ def scan_document(file_path: Path) -> List[str]:
 
 def _scan_raw_binary(path: Path) -> List[str]:
     """
-    Scans the raw bytes of a file (PDF/Docx/HTML) for CSS/HTML hiding techniques.
-    Uses Latin-1 decoding to map bytes 1-to-1 to characters for Regex.
+    Scans the raw bytes of a file for CSS/HTML hiding techniques.
     """
     threats = []
     try:
         with open(path, "rb") as f:
             buffer = ""
             while True:
-                # Read binary chunk
                 chunk_bytes = f.read(CHUNK_SIZE)
                 if not chunk_bytes:
                     break
                 
-                # Decode as Latin-1 to preserve all byte values as chars
-                # This allows searching for ASCII strings inside binary files (like PDF streams)
+                # Decode as Latin-1 to preserve all byte values
                 chunk_str = chunk_bytes.decode("latin-1")
-                
-                # Combine with overlap
                 data = buffer + chunk_str
                 
                 # Check Stealth Patterns
                 for pattern in STEALTH_PATTERNS:
-                    if re.search(pattern, data, re.IGNORECASE):
-                        threats.append(f"MEDIUM: Stealth/Hiding technique detected in {path.name} (Raw): '{pattern}'")
-                        return threats # Fail fast on stealth detection
+                    # FIX: Capture the match object to report the ACTUAL found text
+                    match = re.search(pattern, data, re.IGNORECASE)
+                    if match:
+                        found_text = match.group(0)
+                        # Truncate for log readability
+                        if len(found_text) > 50: found_text = found_text[:47] + "..."
+                        
+                        threats.append(f"MEDIUM: Stealth/Hiding technique detected in {path.name} (Raw): '{found_text}'")
+                        return threats 
                 
-                # Update buffer
                 buffer = chunk_str[-OVERLAP_SIZE:]
     except Exception:
-        pass # Ignore binary read errors
+        pass 
     return threats
 
 def _read_text_sliding(path: Path) -> Generator[str, None, None]:
