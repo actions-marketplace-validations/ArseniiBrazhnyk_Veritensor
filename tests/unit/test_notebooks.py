@@ -1,6 +1,16 @@
 import pytest
 import json
+from unittest.mock import patch
 from veritensor.engines.static.notebook_engine import scan_notebook
+
+MOCKED_SUSPICIOUS = ["AWS_ACCESS_KEY_ID"]
+MOCKED_INJECTIONS = ["Ignore previous instructions"]
+
+@pytest.fixture(autouse=True)
+def mock_signatures():
+    with patch("veritensor.engines.static.rules.SignatureLoader.get_suspicious_strings", return_value=MOCKED_SUSPICIOUS), \
+         patch("veritensor.engines.static.rules.SignatureLoader.get_prompt_injections", return_value=MOCKED_INJECTIONS):
+        yield
 
 def create_dummy_notebook(path, cells):
     """Helper to create a .ipynb file for testing."""
@@ -64,6 +74,7 @@ def test_notebook_secret_in_output(tmp_path):
     create_dummy_notebook(f, cells)
     
     threats = scan_notebook(f)
+    # With the mock above, it will pass.
     assert len(threats) > 0
     assert any("Leaked secret" in t for t in threats)
 

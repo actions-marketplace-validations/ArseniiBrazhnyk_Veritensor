@@ -6,8 +6,10 @@ import ast
 import logging
 from pathlib import Path
 from typing import List, Any
+import re
+from veritensor.core.entropy import is_high_entropy
 from veritensor.engines.static.rules import get_severity, SignatureLoader, is_match
-from veritensor.engines.content.pii import PIIScanner  # <--- NEW IMPORT
+from veritensor.engines.content.pii import PIIScanner  
 
 logger = logging.getLogger(__name__)
 
@@ -74,18 +76,37 @@ def scan_notebook(file_path: Path) -> List[str]:
                         # Optimization: Scan only the beginning of large outputs
                         scan_content = text_content[:MAX_OUTPUT_SCAN_SIZE]
                         
-                        # A. Secrets (Regex)
+                        # A. Secrets (Regex & Simple)
                         if is_match(scan_content, secret_patterns):
                             for pat in secret_patterns:
-                                if is_match(scan_content, [pat]):
-                                    threats.append(f"CRITICAL: Leaked secret detected in Cell {cell_num} Output: '{pat}'")
+                                # Case 1: Regex Pattern (Entropy Check)
+                                if pat.startswith("regex:"): 
+                                    regex_str = pat.replace("regex:", "", 1).strip()
+                                    try:
+                                        # Scan OUTPUT content
+                                        matches = re.findall(regex_str, scan_content, re.IGNORECASE)
+                                        for match in matches:
+                                            # If regex has groups (var, val) -> check entropy
+                                            if isinstance(match, tuple) and len(match) >= 2:
+                                                secret_candidate = match[1] 
+                                                if is_high_entropy(secret_candidate):
+                                                    threats.append(f"CRITICAL: High Entropy Secret detected in Cell {cell_num}: '{match[0]} = ...'")
+                                            # If regex has no groups (simple match) -> report match
+                                            elif isinstance(match, str):
+                                                threats.append(f"CRITICAL: Secret pattern detected in Cell {cell_num} Output: '{match[:50]}'")
+                                    except Exception:
+                                        pass
+                                
+                                # Case 2: Simple String Match (FIXED)
+                                else:
+                                    if pat in scan_content:
+                                        threats.append(f"CRITICAL: Leaked secret detected in Cell {cell_num} Output: '{pat}'")
                         
-                        # B. PII (Presidio ML) <--- NEW BLOCK
+                        # B. PII (Presidio ML) 
                         pii_threats = PIIScanner.scan(scan_content)
                         if pii_threats:
-                            # Add context about location
                             threats.extend([f"{t} in Cell {cell_num} Output" for t in pii_threats])
-
+                            
             # --- B. Markdown Cells (RAG Security) ---
             elif cell_type == "markdown":
                 # RAG Poisoning / Prompt Injection
@@ -97,7 +118,7 @@ def scan_notebook(file_path: Path) -> List[str]:
                 # Phishing / XSS
                 lower_source = source_text.lower()
                 if "javascript:" in lower_source or "data:text/html" in lower_source:
-                     threats.append(f"MEDIUM: Suspicious script/XSS in Markdown Cell {cell_num}")
+                      threats.append(f"MEDIUM: Suspicious script/XSS in Markdown Cell {cell_num}")
 
     except Exception as e:
         logger.error(f"Failed to scan notebook {file_path}: {e}")
