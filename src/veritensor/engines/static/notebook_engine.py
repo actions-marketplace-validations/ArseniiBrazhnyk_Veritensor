@@ -79,11 +79,12 @@ def scan_notebook(file_path: Path) -> List[str]:
                         # A. Secrets (Regex)
                         if is_match(scan_content, secret_patterns):
                             for pat in secret_patterns:
-                                if pat.startswith("regex:") and "api" in pat.lower(): # Optimization: we use only Generic Regex
+                                # [FIX] Removed strict "api" filter to allow AWS/Other keys
+                                if pat.startswith("regex:"): 
                                     regex_str = pat.replace("regex:", "", 1).strip()
                                     try:
-                                        # We are looking for all the matches in the text.
-                                        matches = re.findall(regex_str, source_text, re.IGNORECASE)
+                                        # [FIX] Scan 'scan_content' (output), NOT 'source_text' (code)
+                                        matches = re.findall(regex_str, scan_content, re.IGNORECASE)
                                         for match in matches:
                                             # A match can be a tuple if there are groups in the regex.
                                             # Our regex: (variable name, value)
@@ -113,7 +114,7 @@ def scan_notebook(file_path: Path) -> List[str]:
                 # Phishing / XSS
                 lower_source = source_text.lower()
                 if "javascript:" in lower_source or "data:text/html" in lower_source:
-                     threats.append(f"MEDIUM: Suspicious script/XSS in Markdown Cell {cell_num}")
+                      threats.append(f"MEDIUM: Suspicious script/XSS in Markdown Cell {cell_num}")
 
     except Exception as e:
         logger.error(f"Failed to scan notebook {file_path}: {e}")
