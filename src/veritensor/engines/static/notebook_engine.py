@@ -76,33 +76,37 @@ def scan_notebook(file_path: Path) -> List[str]:
                         # Optimization: Scan only the beginning of large outputs
                         scan_content = text_content[:MAX_OUTPUT_SCAN_SIZE]
                         
-                        # A. Secrets (Regex)
+                        # A. Secrets (Regex & Simple)
                         if is_match(scan_content, secret_patterns):
                             for pat in secret_patterns:
-                                # [FIX] Removed strict "api" filter to allow AWS/Other keys
+                                # Case 1: Regex Pattern (Entropy Check)
                                 if pat.startswith("regex:"): 
                                     regex_str = pat.replace("regex:", "", 1).strip()
                                     try:
-                                        # [FIX] Scan 'scan_content' (output), NOT 'source_text' (code)
+                                        # Scan OUTPUT content
                                         matches = re.findall(regex_str, scan_content, re.IGNORECASE)
                                         for match in matches:
-                                            # A match can be a tuple if there are groups in the regex.
-                                            # Our regex: (variable name, value)
+                                            # If regex has groups (var, val) -> check entropy
                                             if isinstance(match, tuple) and len(match) >= 2:
                                                 secret_candidate = match[1] 
-                                                
-                                                # 2. Checking Entropy
                                                 if is_high_entropy(secret_candidate):
                                                     threats.append(f"CRITICAL: High Entropy Secret detected in Cell {cell_num}: '{match[0]} = ...'")
+                                            # If regex has no groups (simple match) -> report match
+                                            elif isinstance(match, str):
+                                                threats.append(f"CRITICAL: Secret pattern detected in Cell {cell_num} Output: '{match[:50]}'")
                                     except Exception:
                                         pass
-                                        
+                                
+                                # Case 2: Simple String Match (FIXED)
+                                else:
+                                    if pat in scan_content:
+                                        threats.append(f"CRITICAL: Leaked secret detected in Cell {cell_num} Output: '{pat}'")
+                        
                         # B. PII (Presidio ML) 
                         pii_threats = PIIScanner.scan(scan_content)
                         if pii_threats:
-                            # Add context about location
                             threats.extend([f"{t} in Cell {cell_num} Output" for t in pii_threats])
-
+                            
             # --- B. Markdown Cells (RAG Security) ---
             elif cell_type == "markdown":
                 # RAG Poisoning / Prompt Injection
