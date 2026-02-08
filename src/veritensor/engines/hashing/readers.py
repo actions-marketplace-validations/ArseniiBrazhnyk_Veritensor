@@ -10,10 +10,12 @@ import zipfile
 import logging
 from typing import Dict, Any, Optional, BinaryIO
 from pathlib import Path
+from veritensor.core.safe_zip import SafeZipReader, ZipBombError
 
 # --- Constants ---
 GGUF_MAGIC = 0x46554747  # "GGUF" in little-endian
 GGUF_DEFAULT_ALIGNMENT = 32
+MAX_HEADER_SIZE = 100 * 1024 * 1024 # 100 MB Limit for Safetensors header
 
 # Mapping GGUF value types to Python types (subset needed for metadata)
 # Ref: gguf-py/constants.py
@@ -58,8 +60,8 @@ class SafetensorsReader(ModelReader):
                 header_len = struct.unpack('<Q', length_bytes)[0]
                 
                 # Safety check: Header shouldn't be absurdly large (e.g., > 100MB)
-                if header_len > 100 * 1024 * 1024:
-                    return {"error": f"Header too large: {header_len} bytes"}
+                if header_len > MAX_HEADER_SIZE:
+                    return {"error": f"Header too large ({header_len} bytes). Possible DoS attack or corrupted file."}
 
                 # Read the JSON header
                 header_json_bytes = f.read(header_len)
@@ -86,12 +88,13 @@ class PyTorchZipReader(ModelReader):
     def read_metadata(self, file_path: Path) -> Dict[str, Any]:
         try:
             if not zipfile.is_zipfile(file_path):
-                return {"format": "pytorch_legacy", "note": "Not a zip file (likely legacy pickle)"}
+                return {"format": "pytorch_legacy", "note": "Not a zip file"}
 
             with zipfile.ZipFile(file_path, 'r') as z:
+                # ZIP BOMB PROTECTION
+                SafeZipReader.validate(z)
+
                 file_list = z.namelist()
-                
-                # Check for standard PyTorch structure
                 has_data_pkl = "archive/data.pkl" in file_list or "data.pkl" in file_list
                 has_version = "archive/version" in file_list or "version" in file_list
                 
@@ -100,8 +103,9 @@ class PyTorchZipReader(ModelReader):
                     "files": file_list,
                     "is_valid_structure": has_data_pkl and has_version
                 }
+        except ZipBombError as e:
+            return {"error": f"Zip Bomb detected: {str(e)}"}
         except Exception as e:
-            logger.error(f"Failed to read pytorch zip {file_path}: {e}")
             return {"error": str(e)}
 
 
@@ -205,7 +209,7 @@ def get_reader_for_file(file_path: Path) -> Optional[ModelReader]:
         return SafetensorsReader()
     elif ext == ".gguf":
         return GGUFReader()
-    elif ext in [".pt", ".pth", ".bin", ".ckpt"]:
+    elif ext in [".pt", ".pth", ".bin", ".ckpt", ".whl"]:
         # Check if it's a zip (modern pytorch) or legacy
         if zipfile.is_zipfile(file_path):
             return PyTorchZipReader()

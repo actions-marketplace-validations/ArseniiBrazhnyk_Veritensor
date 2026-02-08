@@ -30,8 +30,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          # Используем [test], так как мы прописали зависимости в pyproject.toml
+          python -m pip install --upgrade pip setuptools wheel
+          pip install "wheel>=0.46.2" 
           pip install -e .[test]
 
       - name: Install Cosign (for signing tests)
@@ -59,7 +59,7 @@ jobs:
           format: 'table'
           # We are not blocking the build yet (exit-code 0) so that you can see the report, 
           # but the release did not stop due to minor vulnerabilities in the basic python image
-          exit-code: '0' 
+          exit-code: '1' 
           ignore-unfixed: true
           vuln-type: 'os,library'
           severity: 'CRITICAL,HIGH'
